@@ -1,0 +1,2 @@
+# VISION's core runtime uses only the Python standard library.
+# Optional integrations should be added here as they are implemented.
