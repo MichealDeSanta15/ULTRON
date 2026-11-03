@@ -84,7 +84,7 @@ class VisionRuntime:
             for route in routes:
                 agent = self.agents[route]
                 self.log_event("agent", f"{agent.spec.name} started", {"task_id": task.id, "agent": route})
-                futures[self._agent_executor.submit(agent.run, AgentContext(task.id, task.prompt, {}))] = route
+                futures[self._agent_executor.submit(agent.run, AgentContext(task.id, task.prompt, {"store": self.store}))] = route
             results: list[str] = []
             for future in as_completed(futures):
                 route = futures[future]
@@ -105,14 +105,15 @@ class VisionRuntime:
     @staticmethod
     def _route(prompt: str) -> tuple[str, str]:
         text = prompt.lower()
+        matches = lambda words: any((word in text if " " in word or "://" in word else re.search(rf"\b{re.escape(word)}\b", text)) for word in words)
         risk = "high" if re.search(r"\b(delete|remove|shutdown|restart|send|purchase|pay|password|credential)\b", text) else "low"
-        if any(word in text for word in ("code", "bug", "repository", "repo", "build", "test", "implement")):
+        if matches(("code", "bug", "repository", "repo", "build", "test", "implement")):
             return "coding", risk
-        if any(word in text for word in ("research", "compare", "latest", "sources", "find out", "investigate")):
+        if matches(("research", "compare", "latest", "sources", "find out", "investigate")):
             return "research", risk
-        if any(word in text for word in ("cpu", "memory", "disk", "system", "process", "windows", "computer")):
+        if matches(("cpu", "memory", "disk", "system", "process", "windows", "computer")):
             return "system", risk
-        if any(word in text for word in ("remember", "recall", "memory", "note")):
+        if matches(("remember", "recall", "memory", "note")):
             return "memory", risk
         return "vision-core", risk
 
@@ -120,10 +121,17 @@ class VisionRuntime:
     def _subtask_routes(prompt: str, primary: str) -> list[str]:
         text = prompt.lower()
         routes = [primary]
-        if primary != "planner" and len(text.split()) > 10:
+        keyword_routes = (
+            ("coding", ("code", "bug", "repository", "repo", "build", "test", "implement")),
+            ("research", ("research", "compare", "latest", "sources", "find out", "investigate", "http://", "https://")),
+            ("system", ("cpu", "memory", "disk", "system", "process", "windows", "computer")),
+            ("memory", ("remember", "recall", "memory", "note")),
+        )
+        for route, keywords in keyword_routes:
+            if route != primary and any((word in text if " " in word or "://" in word else re.search(rf"\b{re.escape(word)}\b", text)) for word in keywords):
+                routes.append(route)
+        if primary != "planner" and len(text.split()) >= 10:
             routes.insert(0, "planner")
-        if primary not in routes:
-            routes.append(primary)
         return routes
 
     def close(self) -> None:

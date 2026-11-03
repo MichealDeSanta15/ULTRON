@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import platform
 import shutil
+import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -44,6 +46,19 @@ class ResearchAgent(Agent):
     spec = AgentSpec("research", "Research Agent", "Research", "Creates source-oriented research plans and summaries.", ("research", "analysis"))
 
     def run(self, context: AgentContext) -> str:
+        url = next((word.strip(".,!?()[]") for word in context.prompt.split() if word.startswith(("http://", "https://"))), None)
+        if url:
+            try:
+                request = urllib.request.Request(url, headers={"User-Agent": "VISION/0.1"})
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    content_type = response.headers.get("content-type", "")
+                    body = response.read(12000).decode("utf-8", errors="replace")
+                title = ""
+                if "<title" in body.lower():
+                    title = body.lower().split("<title", 1)[1].split(">", 1)[-1].split("</title", 1)[0].strip()
+                return f"Research Agent fetched {url} ({content_type}); title={title or 'unavailable'}; received {len(body)} characters for analysis."
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                return f"Research Agent could not fetch {url}: {exc}"
         return ("Research Agent received the request. In this foundation release it returns a controlled "
                 "research brief; web connectors can be added through the tool contract without changing routing.")
 
@@ -69,6 +84,23 @@ class MemoryAgent(Agent):
     spec = AgentSpec("memory", "Memory Agent", "Knowledge", "Stores and recalls durable user-approved notes.", ("memory", "knowledge"))
 
     def run(self, context: AgentContext) -> str:
+        store = context.metadata.get("store")
+        if store is not None:
+            text = context.prompt.strip()
+            lowered = text.lower()
+            if lowered.startswith(("remember ", "note ", "save ")):
+                content = text.split(" ", 1)[1].strip()
+                memory = store.add_memory("user_note", content)
+                return f"Memory Agent saved note #{memory['id']}: {content}"
+            query = text
+            for prefix in ("recall ", "what do you remember about ", "search memory "):
+                if lowered.startswith(prefix):
+                    query = text[len(prefix):].strip()
+                    break
+            memories = store.search_memories(query)
+            if memories:
+                return "Memory Agent recalled:\n" + "\n".join(f"• {item['content']}" for item in memories)
+            return "Memory Agent found no matching durable notes."
         return "Memory Agent is ready to store or recall approved project knowledge."
 
 

@@ -44,9 +44,18 @@ class VisionRuntimeTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
 
     def test_memory_round_trip(self) -> None:
-        saved = self.runtime.store.add_memory("preference", "Use concise reports")
+        task = self.runtime.create_task("Remember that I prefer concise reports")
+        result = self.wait_for(task.id)
+        self.assertEqual(result["status"], "completed")
+        saved = self.runtime.store.search_memories("concise")[0]
         memories = self.runtime.store.search_memories("concise")
         self.assertEqual(memories[0]["id"], saved["id"])
+
+    def test_multi_domain_request_uses_parallel_specialists(self) -> None:
+        task = self.runtime.create_task("Research the latest Python release and check system disk status")
+        result = self.wait_for(task.id)
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual({item["agent"] for item in result["subtasks"]}, {"planner", "research", "system"})
 
 
 if __name__ == "__main__":

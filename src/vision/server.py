@@ -51,6 +51,10 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, {"agents": runtime.agent_specs()})
             elif path == "/api/tasks":
                 self._send(HTTPStatus.OK, {"tasks": runtime.store.list_tasks()})
+            elif path.startswith("/api/tasks/"):
+                task_id = path.split("/")[3]
+                task = runtime.store.get_task(task_id)
+                self._send(HTTPStatus.OK, {"task": task} if task else {"error": "task not found"})
             elif path == "/api/events":
                 after = int(query.get("after", [0])[0])
                 self._send(HTTPStatus.OK, {"events": runtime.store.events(after=after)})
