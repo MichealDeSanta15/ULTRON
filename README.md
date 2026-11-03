@@ -21,6 +21,8 @@ python -m vision
 
 Or double-click `run_vision.bat`.
 
+For a native Windows control shell, double-click `run_vision_app.bat`. It uses the same runtime and can open the web dashboard when needed.
+
 Open <http://127.0.0.1:8765> if the browser does not open automatically.
 
 ## Optional local model

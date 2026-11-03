@@ -4,7 +4,6 @@ import argparse
 import json
 import threading
 import webbrowser
-from pathlib import Path
 
 from .config import Settings
 from .runtime import VisionRuntime
@@ -16,6 +15,7 @@ def main() -> None:
     parser.add_argument("--host", default=None)
     parser.add_argument("--port", type=int, default=None)
     parser.add_argument("--open-browser", action="store_true")
+    parser.add_argument("--desktop", action="store_true", help="Open the native Windows control shell")
     parser.add_argument("--check", action="store_true", help="Run a configuration health check")
     args = parser.parse_args()
 
@@ -33,6 +33,10 @@ def main() -> None:
     print("Press Ctrl+C to stop.")
     if args.open_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    if args.desktop:
+        from .desktop import run_desktop_shell
+        run_desktop_shell(runtime, server, url)
+        return
     try:
         server.serve_forever()
     except KeyboardInterrupt:
