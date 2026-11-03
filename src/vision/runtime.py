@@ -11,6 +11,7 @@ from .config import Settings
 from .llm import LLMClient
 from .models import Task
 from .store import Store
+from .tools import ToolRegistry
 
 
 class VisionRuntime:
@@ -19,6 +20,7 @@ class VisionRuntime:
         self.store = Store(settings.data_dir)
         self.agents = built_in_agents()
         self.llm = LLMClient(settings)
+        self.tools = ToolRegistry()
         self._task_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="vision-task")
         self._agent_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="vision-agent")
         self._lock = threading.RLock()
@@ -29,6 +31,9 @@ class VisionRuntime:
 
     def agent_specs(self) -> list[dict[str, Any]]:
         return [vars(agent.spec) for agent in self.agents.values()]
+
+    def tool_specs(self) -> list[dict[str, Any]]:
+        return self.tools.specs()
 
     def overview(self) -> dict[str, Any]:
         tasks = self.store.list_tasks(limit=200)
@@ -97,7 +102,7 @@ class VisionRuntime:
             for route in routes:
                 agent = self.agents[route]
                 self.log_event("agent", f"{agent.spec.name} started", {"task_id": task.id, "agent": route})
-                futures[self._agent_executor.submit(agent.run, AgentContext(task.id, task.prompt, {"store": self.store}))] = route
+                futures[self._agent_executor.submit(agent.run, AgentContext(task.id, task.prompt, {"store": self.store, "tools": self.tools}))] = route
             results: list[str] = []
             for future in as_completed(futures):
                 route = futures[future]

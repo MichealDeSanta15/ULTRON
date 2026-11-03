@@ -7,6 +7,7 @@ from pathlib import Path
 
 from vision.config import Settings
 from vision.runtime import VisionRuntime
+from vision.tools import ToolRegistry
 
 
 class VisionRuntimeTests(unittest.TestCase):
@@ -56,6 +57,12 @@ class VisionRuntimeTests(unittest.TestCase):
         result = self.wait_for(task.id)
         self.assertEqual(result["status"], "completed")
         self.assertEqual({item["agent"] for item in result["subtasks"]}, {"planner", "research", "system"})
+
+    def test_tool_registry_exposes_safe_capabilities(self) -> None:
+        registry = ToolRegistry()
+        snapshot = registry.execute("workspace_snapshot")
+        self.assertIn("workspace", snapshot)
+        self.assertIn("workspace_snapshot", {item["id"] for item in registry.specs()})
 
 
 if __name__ == "__main__":

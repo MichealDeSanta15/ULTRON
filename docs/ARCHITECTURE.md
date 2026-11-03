@@ -22,6 +22,8 @@ User / dashboard / future voice clients
 
 Each agent exposes an `AgentSpec` and a `run(AgentContext)` method. `AgentSpec` is the future plugin boundary: an external MCP adapter, browser agent, voice agent, or native desktop agent can register the same metadata without changing the dashboard or task lifecycle.
 
+Agents receive capabilities through `ToolRegistry`. Every tool has an ID, description, owning agents, risk level, and handler. The registry is exposed at `GET /api/tools`, which makes the active capability surface inspectable before integrations are added.
+
 An agent should:
 
 1. Have one clear responsibility.

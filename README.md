@@ -9,6 +9,7 @@ The first release is deliberately dependency-light so it can launch on Windows w
 - Parallel execution for independent subtasks.
 - Persistent SQLite task history, events, and memories.
 - Explicit risk classification and approval gates.
+- An inspectable tool registry for specialist capabilities.
 - Optional Ollama-compatible model support.
 - A Windows launcher that starts the service and opens the dashboard.
 

@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 import platform
 import shutil
-import urllib.error
-import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,15 +47,14 @@ class ResearchAgent(Agent):
         url = next((word.strip(".,!?()[]") for word in context.prompt.split() if word.startswith(("http://", "https://"))), None)
         if url:
             try:
-                request = urllib.request.Request(url, headers={"User-Agent": "VISION/0.1"})
-                with urllib.request.urlopen(request, timeout=8) as response:
-                    content_type = response.headers.get("content-type", "")
-                    body = response.read(12000).decode("utf-8", errors="replace")
+                result = context.metadata["tools"].execute("fetch_url", url=url)
+                content_type = result["content_type"]
+                body = result["body"]
                 title = ""
                 if "<title" in body.lower():
                     title = body.lower().split("<title", 1)[1].split(">", 1)[-1].split("</title", 1)[0].strip()
                 return f"Research Agent fetched {url} ({content_type}); title={title or 'unavailable'}; received {len(body)} characters for analysis."
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            except (TimeoutError, OSError, RuntimeError) as exc:
                 return f"Research Agent could not fetch {url}: {exc}"
         return ("Research Agent received the request. In this foundation release it returns a controlled "
                 "research brief; web connectors can be added through the tool contract without changing routing.")
@@ -67,17 +64,17 @@ class CodingAgent(Agent):
     spec = AgentSpec("coding", "Coding Agent", "Software Engineering", "Inspects projects and prepares safe implementation work.", ("code", "repositories", "testing"), "medium")
 
     def run(self, context: AgentContext) -> str:
-        cwd = Path.cwd()
-        return f"Coding Agent prepared a workspace-aware plan from {cwd}. No files were changed by this request."
+        snapshot = context.metadata["tools"].execute("workspace_snapshot")
+        return f"Coding Agent prepared a workspace-aware plan from {snapshot['workspace']} ({snapshot['entry_count']} visible entries). No files were changed by this request."
 
 
 class SystemAgent(Agent):
     spec = AgentSpec("system", "System Agent", "System Operations", "Reports safe, read-only Windows and runtime diagnostics.", ("system", "diagnostics"), "medium")
 
     def run(self, context: AgentContext) -> str:
-        disk = shutil.disk_usage(os.getcwd())
-        return (f"System Agent report: OS={platform.platform()}, Python={platform.python_version()}, "
-                f"CPU={os.cpu_count() or 1} cores, free disk={disk.free // (1024**3)} GB.")
+        snapshot = context.metadata["tools"].execute("system_snapshot")
+        return (f"System Agent report: OS={snapshot['os']}, Python={snapshot['python']}, "
+                f"CPU={snapshot['cpu_count']} cores, free disk={snapshot['free_disk_gb']} GB.")
 
 
 class MemoryAgent(Agent):
