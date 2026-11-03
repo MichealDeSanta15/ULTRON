@@ -47,6 +47,8 @@ class VisionRequestHandler(BaseHTTPRequestHandler):
                 self._send(HTTPStatus.OK, DASHBOARD_HTML, "text/html")
             elif path == "/api/health":
                 self._send(HTTPStatus.OK, runtime.health())
+            elif path == "/api/overview":
+                self._send(HTTPStatus.OK, runtime.overview())
             elif path == "/api/agents":
                 self._send(HTTPStatus.OK, {"agents": runtime.agent_specs()})
             elif path == "/api/tasks":

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import threading
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
@@ -28,6 +29,18 @@ class VisionRuntime:
 
     def agent_specs(self) -> list[dict[str, Any]]:
         return [vars(agent.spec) for agent in self.agents.values()]
+
+    def overview(self) -> dict[str, Any]:
+        tasks = self.store.list_tasks(limit=200)
+        counts = Counter(task["status"] for task in tasks)
+        events = self.store.events(limit=10000)
+        return {
+            "health": self.health(),
+            "task_counts": dict(counts),
+            "active_tasks": sum(counts.get(status, 0) for status in ("queued", "running", "awaiting_approval")),
+            "completed_tasks": counts.get("completed", 0),
+            "event_count": events[-1]["sequence"] if events else 0,
+        }
 
     def log_event(self, kind: str, message: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.store.event(kind, message, payload)
